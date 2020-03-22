@@ -9,6 +9,8 @@ import (
 
 	"github.com/allegro/bigcache/v2"
 	"github.com/coocood/freecache"
+	"github.com/polaris1119/cache"
+	"github.com/polaris1119/cache/lru"
 )
 
 const maxEntrySize = 256
@@ -17,6 +19,13 @@ func BenchmarkMapSet(b *testing.B) {
 	m := make(map[string][]byte, b.N)
 	for i := 0; i < b.N; i++ {
 		m[key(i)] = value()
+	}
+}
+
+func BenchmarkTourCacheSet(b *testing.B) {
+	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	for i := 0; i < b.N; i++ {
+		cache.Set(key(i), value())
 	}
 }
 
@@ -54,6 +63,19 @@ func BenchmarkMapGet(b *testing.B) {
 		if m[key(i)] != nil {
 			hitCount++
 		}
+	}
+}
+
+func BenchmarkTourCacheGet(b *testing.B) {
+	b.StopTimer()
+	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	for i := 0; i < b.N; i++ {
+		cache.Set(key(i), value())
+	}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		cache.Get(key(i))
 	}
 }
 
@@ -100,6 +122,20 @@ func BenchmarkBigCacheGet(b *testing.B) {
 	}
 }
 
+func BenchmarkTourCacheSetParallel(b *testing.B) {
+	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	rand.Seed(time.Now().Unix())
+
+	b.RunParallel(func(pb *testing.PB) {
+		id := rand.Intn(1000)
+		counter := 0
+		for pb.Next() {
+			cache.Set(parallelKey(id, counter), value())
+			counter = counter + 1
+		}
+	})
+}
+
 func BenchmarkBigCacheSetParallel(b *testing.B) {
 	cache := initBigCache(b.N)
 	rand.Seed(time.Now().Unix())
@@ -135,6 +171,23 @@ func BenchmarkConcurrentMapSetParallel(b *testing.B) {
 		id := rand.Intn(1000)
 		for pb.Next() {
 			m.Store(key(id), value())
+		}
+	})
+}
+
+func BenchmarkTourCacheGetParallel(b *testing.B) {
+	b.StopTimer()
+	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	for i := 0; i < b.N; i++ {
+		cache.Set(key(i), value())
+	}
+
+	b.StartTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		counter := 0
+		for pb.Next() {
+			cache.Get(key(counter))
+			counter = counter + 1
 		}
 	})
 }
@@ -183,6 +236,95 @@ func BenchmarkConcurrentMapGetParallel(b *testing.B) {
 	b.StartTimer()
 	hitCount := 0
 
+	b.RunParallel(func(pb *testing.PB) {
+		id := rand.Intn(1000)
+		for pb.Next() {
+			_, ok := m.Load(key(id))
+			if ok {
+				hitCount++
+			}
+		}
+	})
+}
+
+func BenchmarkTourCacheSetGetParallel(b *testing.B) {
+	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	rand.Seed(time.Now().Unix())
+
+	b.RunParallel(func(pb *testing.PB) {
+		id := rand.Intn(1000)
+		counter := 0
+		for pb.Next() {
+			cache.Set(parallelKey(id, counter), value())
+			counter = counter + 1
+		}
+	})
+
+	b.RunParallel(func(pb *testing.PB) {
+		counter := 0
+		for pb.Next() {
+			cache.Get(key(counter))
+			counter = counter + 1
+		}
+	})
+}
+
+func BenchmarkBigCacheSetGetParallel(b *testing.B) {
+	cache := initBigCache(b.N)
+	rand.Seed(time.Now().Unix())
+
+	b.RunParallel(func(pb *testing.PB) {
+		id := rand.Intn(1000)
+		counter := 0
+		for pb.Next() {
+			cache.Set(parallelKey(id, counter), value())
+			counter = counter + 1
+		}
+	})
+
+	b.RunParallel(func(pb *testing.PB) {
+		counter := 0
+		for pb.Next() {
+			cache.Get(key(counter))
+			counter = counter + 1
+		}
+	})
+}
+
+func BenchmarkFreeCacheSetGetParallel(b *testing.B) {
+	cache := freecache.NewCache(b.N * maxEntrySize)
+	rand.Seed(time.Now().Unix())
+
+	b.RunParallel(func(pb *testing.PB) {
+		id := rand.Intn(1000)
+		counter := 0
+		for pb.Next() {
+			cache.Set([]byte(parallelKey(id, counter)), value(), 0)
+			counter = counter + 1
+		}
+	})
+
+	b.RunParallel(func(pb *testing.PB) {
+		counter := 0
+		for pb.Next() {
+			cache.Get([]byte(key(counter)))
+			counter = counter + 1
+		}
+	})
+}
+
+func BenchmarkConcurrentMapSetGetParallel(b *testing.B) {
+	rand.Seed(time.Now().Unix())
+	var m sync.Map
+
+	b.RunParallel(func(pb *testing.PB) {
+		id := rand.Intn(1000)
+		for pb.Next() {
+			m.Store(key(id), value())
+		}
+	})
+
+	hitCount := 0
 	b.RunParallel(func(pb *testing.PB) {
 		id := rand.Intn(1000)
 		for pb.Next() {

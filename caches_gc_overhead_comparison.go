@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"runtime"
 	"runtime/debug"
 	"time"
 
 	"github.com/allegro/bigcache/v2"
 	"github.com/coocood/freecache"
+	"github.com/polaris1119/cache"
+	"github.com/polaris1119/cache/lru"
 )
 
 var previousPause time.Duration
@@ -22,13 +25,13 @@ func gcPause() time.Duration {
 }
 
 const (
-	entries   = 20000000
+	entries   = 2000000
 	valueSize = 100
-	repeat    = 50
+	repeat    = 20
 )
 
 func main() {
-	debug.SetGCPercent(10)
+	debug.SetGCPercent(5)
 	fmt.Println("Number of entries: ", entries)
 	fmt.Println("Number of repeats: ", repeat)
 
@@ -36,6 +39,7 @@ func main() {
 
 	stdMap()
 	freeCache()
+	tourCache()
 	bigCache()
 
 	fmt.Println("GC pause for warmup: ", gcPause())
@@ -48,6 +52,10 @@ func main() {
 		bigCache()
 	}
 	fmt.Println("GC pause for bigcache: ", gcPause())
+	for i := 0; i < repeat; i++ {
+		tourCache()
+	}
+	fmt.Println("GC pause for tourcache: ", gcPause())
 	for i := 0; i < repeat; i++ {
 		stdMap()
 	}
@@ -76,6 +84,21 @@ func freeCache() {
 
 	if freeCache.OverwriteCount() != 0 {
 		fmt.Println("Overwritten: ", freeCache.OverwriteCount())
+	}
+}
+
+func tourCache() {
+	tourCache := cache.NewTourCache(nil, lru.New(entries*valueSize, nil))
+
+	for i := 0; i < entries; i++ {
+		key, val := generateKeyValue(i, valueSize)
+		tourCache.Set(key, val)
+	}
+
+	firstKey, expectedVal := generateKeyValue(1, valueSize)
+	firstVal := tourCache.Get(firstKey)
+	if !reflect.DeepEqual(firstVal, expectedVal) {
+		fmt.Println("Wrong first element: ", firstVal)
 	}
 }
 
