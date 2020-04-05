@@ -31,7 +31,7 @@ func BenchmarkTourCacheSet(b *testing.B) {
 }
 
 func BenchmarkTourFastCacheSet(b *testing.B) {
-	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
+	cache := fast.NewFastCache(b.N, maxEntrySize, nil)
 	for i := 0; i < b.N; i++ {
 		cache.Set(key(i), value())
 	}
@@ -89,7 +89,7 @@ func BenchmarkTourCacheGet(b *testing.B) {
 
 func BenchmarkTourFastCacheGet(b *testing.B) {
 	b.StopTimer()
-	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
+	cache := fast.NewFastCache(b.N, maxEntrySize, nil)
 	for i := 0; i < b.N; i++ {
 		cache.Set(key(i), value())
 	}
@@ -158,7 +158,7 @@ func BenchmarkTourCacheSetParallel(b *testing.B) {
 }
 
 func BenchmarkTourFastCacheSetParallel(b *testing.B) {
-	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
+	cache := fast.NewFastCache(b.N, maxEntrySize, nil)
 	rand.Seed(time.Now().Unix())
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -229,7 +229,7 @@ func BenchmarkTourCacheGetParallel(b *testing.B) {
 
 func BenchmarkTourFastCacheGetParallel(b *testing.B) {
 	b.StopTimer()
-	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
+	cache := fast.NewFastCache(b.N, maxEntrySize, nil)
 	for i := 0; i < b.N; i++ {
 		cache.Set(key(i), value())
 	}
@@ -322,7 +322,7 @@ func BenchmarkTourCacheSetGetParallel(b *testing.B) {
 }
 
 func BenchmarkTourFastCacheSetGetParallel(b *testing.B) {
-	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
+	cache := fast.NewFastCache(b.N, maxEntrySize, nil)
 	rand.Seed(time.Now().Unix())
 
 	b.RunParallel(func(pb *testing.PB) {
