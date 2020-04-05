@@ -10,6 +10,7 @@ import (
 	"github.com/allegro/bigcache/v2"
 	"github.com/coocood/freecache"
 	"github.com/polaris1119/cache"
+	"github.com/polaris1119/cache/fast"
 	"github.com/polaris1119/cache/lru"
 )
 
@@ -24,6 +25,13 @@ func BenchmarkMapSet(b *testing.B) {
 
 func BenchmarkTourCacheSet(b *testing.B) {
 	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	for i := 0; i < b.N; i++ {
+		cache.Set(key(i), value())
+	}
+}
+
+func BenchmarkTourFastCacheSet(b *testing.B) {
+	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
 	for i := 0; i < b.N; i++ {
 		cache.Set(key(i), value())
 	}
@@ -69,6 +77,19 @@ func BenchmarkMapGet(b *testing.B) {
 func BenchmarkTourCacheGet(b *testing.B) {
 	b.StopTimer()
 	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	for i := 0; i < b.N; i++ {
+		cache.Set(key(i), value())
+	}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		cache.Get(key(i))
+	}
+}
+
+func BenchmarkTourFastCacheGet(b *testing.B) {
+	b.StopTimer()
+	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
 	for i := 0; i < b.N; i++ {
 		cache.Set(key(i), value())
 	}
@@ -136,6 +157,20 @@ func BenchmarkTourCacheSetParallel(b *testing.B) {
 	})
 }
 
+func BenchmarkTourFastCacheSetParallel(b *testing.B) {
+	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
+	rand.Seed(time.Now().Unix())
+
+	b.RunParallel(func(pb *testing.PB) {
+		id := rand.Intn(1000)
+		counter := 0
+		for pb.Next() {
+			cache.Set(parallelKey(id, counter), value())
+			counter = counter + 1
+		}
+	})
+}
+
 func BenchmarkBigCacheSetParallel(b *testing.B) {
 	cache := initBigCache(b.N)
 	rand.Seed(time.Now().Unix())
@@ -178,6 +213,23 @@ func BenchmarkConcurrentMapSetParallel(b *testing.B) {
 func BenchmarkTourCacheGetParallel(b *testing.B) {
 	b.StopTimer()
 	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	for i := 0; i < b.N; i++ {
+		cache.Set(key(i), value())
+	}
+
+	b.StartTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		counter := 0
+		for pb.Next() {
+			cache.Get(key(counter))
+			counter = counter + 1
+		}
+	})
+}
+
+func BenchmarkTourFastCacheGetParallel(b *testing.B) {
+	b.StopTimer()
+	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
 	for i := 0; i < b.N; i++ {
 		cache.Set(key(i), value())
 	}
@@ -249,6 +301,28 @@ func BenchmarkConcurrentMapGetParallel(b *testing.B) {
 
 func BenchmarkTourCacheSetGetParallel(b *testing.B) {
 	cache := cache.NewTourCache(nil, lru.New(b.N*100, nil))
+	rand.Seed(time.Now().Unix())
+
+	b.RunParallel(func(pb *testing.PB) {
+		id := rand.Intn(1000)
+		counter := 0
+		for pb.Next() {
+			cache.Set(parallelKey(id, counter), value())
+			counter = counter + 1
+		}
+	})
+
+	b.RunParallel(func(pb *testing.PB) {
+		counter := 0
+		for pb.Next() {
+			cache.Get(key(counter))
+			counter = counter + 1
+		}
+	})
+}
+
+func BenchmarkTourFastCacheSetGetParallel(b *testing.B) {
+	cache := cache.NewTourFastCache(nil, fast.NewFastCache(b.N, maxEntrySize, nil))
 	rand.Seed(time.Now().Unix())
 
 	b.RunParallel(func(pb *testing.PB) {
